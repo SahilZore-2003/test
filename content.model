@@ -1,0 +1,85 @@
+import { toJSONTransformer } from "@brid/database/mongodb";
+import { Schema, Types, model } from "mongoose";
+import { ContentStatus } from "../../constants";
+import { contentAuthorSchema } from "./content-author.schema";
+import { contentSectionSchema } from "./content-section.schema";
+import { CONTENT_REVIEW_MODEL } from "./review.model";
+import { ANNOUNCEMENT_MODEL } from "../community/announcement.model";
+import { CONTENT_QNA_MODEL } from "./qna.model";
+import contentCertificateSchema from "./certificate.schema";
+import { BUSINESS_MODEL } from "../business/business.model";
+
+export const CONTENT_COLLECTION = "contents";
+
+export const CONTENT_MODEL = "Content";
+
+const schemaOptions = {
+  timestamps: true,
+  versionKey: false,
+  collection: CONTENT_COLLECTION,
+  toJSON: {
+    virtuals: true,
+    transform: toJSONTransformer(),
+  },
+};
+
+const contentDefinition = {
+  title: {
+    type: String,
+    required: true,
+  },
+  business: {
+    type: Types.ObjectId,
+    ref: BUSINESS_MODEL,
+    required: true,
+    immutable: true,
+  },
+  category: {
+    type: String,
+    lowercase: true,
+    default: "",
+  },
+  trailer: String,
+  thumbnail: String,
+  description: String,
+  prerequisites: String,
+  perks: String,
+  sections: {
+    type: [contentSectionSchema],
+    default: [],
+  },
+  audience: String, // NOTE: alias of `whoFor`
+  rating: {
+    type: Number,
+    default: 0.0,
+  },
+  price: {
+    type: Number,
+  },
+  reviews: {
+    type: [Types.ObjectId],
+    ref: CONTENT_REVIEW_MODEL,
+    default: [],
+  },
+  author: contentAuthorSchema,
+  status: {
+    type: String,
+    enum: Object.values(ContentStatus),
+    default: ContentStatus.DRAFT,
+  },
+  qna: {
+    type: [Types.ObjectId],
+    ref: CONTENT_QNA_MODEL,
+    default: [],
+  },
+  announcements: {
+    type: [Types.ObjectId],
+    ref: ANNOUNCEMENT_MODEL,
+    default: [],
+  },
+  certificate: contentCertificateSchema,
+};
+
+const contentSchema = new Schema(contentDefinition, schemaOptions);
+
+export const ContentModel = model(CONTENT_MODEL, contentSchema);
