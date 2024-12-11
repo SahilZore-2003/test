@@ -1,0 +1,208 @@
+import { ProgressModel } from "@brid/server/api";
+import { AppLogger, HttpResponse } from "@brid/server/common";
+import contentsService from "../services/contents.service";
+
+class BusinessContentController {
+  #contentService = contentsService;
+  #logger = new AppLogger(this);
+  #progres = ProgressModel;
+
+  getContents = async (req, res) => {
+    try {
+      const contents = await this.#contentService.getContents(req.params.handle);
+
+      HttpResponse.send(res, contents);
+    } catch (err) {
+      this.#logger.logIfUnknownError("Cannot get contents", err);
+
+      HttpResponse.sendException(res, err);
+    }
+  };
+
+  getMaterial = async (req, res) => {
+    try {
+      const material = await this.#contentService.getMaterial(req.params.material);
+
+      HttpResponse.send(res, material);
+    } catch (err) {
+      this.#logger.logIfUnknownError("Cannot get contents", err);
+
+      HttpResponse.sendException(res, err);
+    }
+  };
+
+  groupMaterialsByContent = async (req, res) => {
+    try {
+      const materials = await this.#contentService.groupMaterialsByContent(req);
+
+      HttpResponse.send(res, materials);
+    } catch (err) {
+      this.#logger.logIfUnknownError("Cannot fetch grouped material", err);
+
+      HttpResponse.sendException(res, err);
+    }
+  };
+
+  getLastThreeDaysAnnouncements = async (req, res) => {
+    try {
+      const announcements = await this.#contentService.getLastThreeDaysAnnouncements(req);
+
+      HttpResponse.send(res, announcements);
+    } catch (err) {
+      this.#logger.logIfUnknownError("Cannot get the last three announcements", err);
+
+      HttpResponse.sendException(res, err);
+    }
+  };
+
+  postQuestion = async (req, res) => {
+    try {
+      const question = await this.#contentService.postQuestion(req);
+
+      HttpResponse.send(res, question);
+    } catch (err) {
+      this.#logger.logIfUnknownError("Cannot post question", err);
+
+      HttpResponse.sendException(res, err);
+    }
+  };
+
+  updateQuestion = async (req, res) => {
+    try {
+      const question = await this.#contentService.updateQuestion(req);
+
+      HttpResponse.send(res, question);
+    } catch (err) {
+      this.#logger.logIfUnknownError("Cannot update question", err);
+
+      HttpResponse.sendException(res, err);
+    }
+  };
+
+  getAllQuestions = async (req, res) => {
+    try {
+      const questions = await this.#contentService.getAllQuestions(req);
+
+      HttpResponse.send(res, questions);
+    } catch (err) {
+      this.#logger.logIfUnknownError("Cannot get all questions", err);
+
+      HttpResponse.sendException(res, err);
+    }
+  };
+
+  answerQuestion = async (req, res) => {
+    try {
+      const answer = await this.#contentService.answerQuestion(req);
+
+      HttpResponse.send(res, answer);
+    } catch (err) {
+      this.#logger.logIfUnknownError("Cannot answer question", err);
+
+      HttpResponse.sendException(res, err);
+    }
+  };
+
+  getAllAnswers = async (req, res) => {
+    try {
+      const answer = await this.#contentService.getAllAnswers(req);
+
+      HttpResponse.send(res, answer);
+    } catch (err) {
+      this.#logger.logIfUnknownError("Cannot get answers of this question", err);
+
+      HttpResponse.sendException(res, err);
+    }
+  };
+
+  addReview = async (req, res) => {
+    try {
+      const newReview = await this.#contentService.addReview(req);
+
+      HttpResponse.send(res, newReview);
+    } catch (err) {
+      this.#logger.logIfUnknownError("Cannot add review ", err);
+
+      HttpResponse.sendException(res, err);
+    }
+  };
+
+  getReviews = async (req, res) => {
+    try {
+      const reviews = await this.#contentService.getReviews(req);
+
+      HttpResponse.send(res, reviews);
+    } catch (err) {
+      this.#logger.logIfUnknownError("Cannot get reviews", err);
+
+      HttpResponse.sendException(res, err);
+    }
+  };
+
+  getProgress = async (req, res) => {
+    try {
+      const progress = await this.#contentService.getProgress(req);
+
+      HttpResponse.send(res, progress);
+    } catch (err) {
+      this.#logger.logIfUnknownError("Cannot get progress", err);
+
+      HttpResponse.sendException(res, err);
+    }
+  };
+
+  getCertificate = async (req, res) => {
+    try {
+      const certificate = await this.#contentService.getCertificate(req);
+
+      HttpResponse.send(res, certificate);
+    } catch (err) {
+      this.#logger.logIfUnknownError("Cannot get progress", err);
+
+      HttpResponse.sendException(res, err);
+    }
+  };
+
+  createAnnouncement = async (req, res) => {
+    try {
+      const updatedContent = await this.#contentService.createAnnouncement(req);
+      HttpResponse.send(res, updatedContent);
+    } catch (err) {
+      this.#logger.logIfUnknownError("Cannot create announcement", err);
+
+      HttpResponse.sendException(res, err);
+    }
+  };
+
+  updateAnnouncement = async (req, res) => {
+    try {
+      const updatedAnnouncement = await this.#contentService.updateAnnouncement(req);
+      HttpResponse.send(res, updatedAnnouncement);
+    } catch (err) {
+      this.#logger.logIfUnknownError("Cannot update announcement", err);
+      HttpResponse.sendException(res, err);
+    }
+  };
+
+  deleteAnnouncement = async (req, res) => {
+    try {
+      const responseMessage = await this.#contentService.deleteAnnouncement(req);
+      HttpResponse.send(res, responseMessage);
+    } catch (err) {
+      this.#logger.logIfUnknownError("Cannot delete announcement", err);
+      HttpResponse.sendException(res, err);
+    }
+  };
+
+  getAllAnnouncements = async (req, res) => {
+    try {
+      const announcements = await this.#contentService.getAllAnnouncements(req);
+      HttpResponse.send(res, announcements);
+    } catch (err) {
+      this.#logger.logIfUnknownError("Cannot fetch announcements", err);
+      HttpResponse.sendException(res, err);
+    }
+  };
+}
+
+export default new BusinessContentController();
