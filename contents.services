@@ -1,0 +1,402 @@
+import {
+  BusinessModel,
+  ContentMaterialModel,
+  ContentModel,
+  ContentQnaModel,
+  ContentReviewModel,
+  ProgressModel,
+  AnnouncementModel,
+} from "@brid/server/api";
+import { ForbiddenException, NotFoundException } from "@brid/server/common";
+import businessService from "../../business/services/business.service";
+
+class BusinessContentService {
+  #business = BusinessModel;
+  #content = ContentModel;
+  #contentMaterial = ContentMaterialModel;
+  #businessService = businessService;
+  #progress = ProgressModel;
+
+  async getContents(handle) {
+    try {
+      const business = await this.#business.findOne({ handle: handle });
+      const contents = await this.#content.find({ business: business._id });
+      return contents;
+    } catch (error) {
+      return { error: "Failed to retrieve contents" };
+    }
+  }
+
+  async getMaterial(id) {
+    try {
+      const material = await this.#contentMaterial.findById(id);
+      return material;
+    } catch (error) {
+      return { error: "Failed to retrieve contents" };
+    }
+  }
+
+  async groupMaterialsByContent(req) {
+    const contentId = req.params.content;
+    const materials = await this.#contentMaterial.find({ content: contentId });
+    return materials;
+  }
+
+  async submitTest(req) {
+    try {
+      const handle = req.params.handle;
+      const { content, material, userAnswer } = req.body;
+      const business = await this.#business.findOne({ handle: handle });
+      const progress = await this.#progress.findOne({ user: req.user.userId, content: content });
+      const contentMaterial = await this.#contentMaterial.findById(material);
+      if (!progress) {
+        throw new NotFoundException(`Progress resource not found`);
+      }
+
+      // TODO test this properly when integrating
+      const quiz = contentMaterial.quiz;
+
+      let totalQuestions = quiz.questions.length;
+      let correctAnswersCount = 0;
+
+      // Compare user's answers with the correct answers
+      userAnswer.forEach((userAnswer) => {
+        // Find the corresponding question from the quiz by its _id
+        const question = quiz.questions.find((q) => q._id.toString() === userAnswer._id);
+
+        if (question) {
+          let allOptionsCorrect = true;
+
+          // Compare case-insensitive if 'caseSenstive' is false
+          question.options.forEach((correctOption, optionIndex) => {
+            const userSelectedOption = userAnswer.options[optionIndex];
+
+            // Check if the user's selected option matches the correct answer
+            if (correctOption.isAnswer !== userSelectedOption.isAnswer) {
+              allOptionsCorrect = false;
+            }
+          });
+
+          // Increment correctAnswersCount if all options are correct
+          if (allOptionsCorrect) {
+            correctAnswersCount++;
+          }
+        }
+      });
+
+      // Calculate the percentage scored
+      const percentageScored = (correctAnswersCount / totalQuestions) * 100;
+      return percentageScored;
+    } catch (err) {
+      return { error: "Failed to submit Test" };
+    }
+  }
+
+  async getLastThreeDaysAnnouncements(req) {
+    try {
+      const { contentId } = req.query;
+      const content = await this.#content.findById(contentId).populate("announcements");
+      if (!content) {
+        return { error: "Content not found" };
+      }
+
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+      const recentAnnouncements = content.announcements.filter(
+        (announcement) => new Date(announcement.createdAt) >= threeDaysAgo
+      );
+      return recentAnnouncements;
+    } catch (error) {
+      console.error("Error fetching last three days announcements:", error);
+      return { error: "Failed to retrieve announcements" };
+    }
+  }
+
+  async postQuestion(req) {
+    try {
+      const { contentId } = req.query;
+      const { question } = req.body;
+      const questioneerId = req.user.userId;
+
+      const content = await this.#content.findById(contentId);
+      if (!content) {
+        return { error: "Content not found" };
+      }
+
+      const newQuestion = new ContentQnaModel({
+        question,
+        questioneer: questioneerId,
+      });
+
+      await newQuestion.save();
+
+      content.qna.push(newQuestion._id);
+
+      await content.save();
+
+      return newQuestion;
+    } catch (error) {
+      console.error("Error posting question:", error);
+      return { error: "Failed to post question" };
+    }
+  }
+
+  async updateQuestion(req) {
+    try {
+      const { questionId } = req.params;
+      const { updatedQuestion } = req.body;
+
+      const question = await ContentQnaModel.findById(questionId);
+
+      if (!question) {
+        return { error: "Question not found" };
+      }
+
+      // Update the question content
+      question.question = updatedQuestion;
+      await question.save();
+
+      return question;
+    } catch (error) {
+      console.error("Error updating question:", error);
+      return { error: "Failed to update question" };
+    }
+  }
+
+  async getAllQuestions(req) {
+    try {
+      const { contentId } = req.query;
+      const content = await this.#content.findById(contentId).populate("qna");
+
+      if (!content) {
+        return { error: "Content not found" };
+      }
+
+      return content.qna;
+    } catch (error) {
+      console.error("Error fetching questions:", error);
+      return { error: "Failed to fetch questions" };
+    }
+  }
+
+  async answerQuestion(req) {
+    try {
+      const { contentId, qnaId } = req.params;
+      const { answer } = req.body;
+      const answererId = req.user.userId;
+
+      const content = await this.#content.findById(contentId);
+      if (!content) {
+        return { error: "Content not found" };
+      }
+
+      if (!content.qna.includes(qnaId)) {
+        return { error: "Question does not belong to the specified content" };
+      }
+
+      const question = await ContentQnaModel.findById(qnaId);
+      if (!question) {
+        return { error: "Question not found" };
+      }
+
+      question.answers.push({
+        answer,
+        answerer: answererId,
+      });
+
+      await question.save();
+
+      return question;
+    } catch (error) {
+      console.error("Error answering question:", error);
+      return { error: "Failed to answer the question" };
+    }
+  }
+
+  async updateAnswer(req, res) {
+    try {
+      const { qnaId, answerId } = req.params;
+      const { updatedAnswer } = req.body;
+
+      const question = await ContentQnaModel.findById(qnaId);
+      if (!question) {
+        return res.status(404).json({ error: "Question not found" });
+      }
+
+      const answer = question.answers.id(answerId);
+      if (!answer) {
+        return res.status(404).json({ error: "Answer not found" });
+      }
+
+      answer.answer = updatedAnswer; // Update the answer content
+      await question.save();
+
+      res.status(200).json({ message: "Answer updated successfully", answer });
+    } catch (error) {
+      console.error("Error updating answer:", error);
+      res.status(500).json({ error: "Failed to update the answer" });
+    }
+  }
+
+  async addReview(req) {
+    try {
+      const { contentId } = req.query;
+      const { reviewText, reviewPoint } = req.body;
+      const userId = req.user.userId;
+
+      const content = await this.#content.findById(contentId);
+      if (!content) {
+        return { error: "Content not found" };
+      }
+
+      const newReview = await ContentReviewModel.create({
+        user: userId,
+        content: contentId,
+        reviewText: reviewText,
+        reviewPoint: reviewPoint,
+      });
+
+      content.reviews.push(newReview._id);
+      await content.save();
+
+      return newReview;
+    } catch (error) {
+      console.error("Error adding review:", error);
+      return { error: "Failed to add review" };
+    }
+  }
+
+  async getReviews(req) {
+    const { contentId } = req.query;
+
+    const content = await this.#content.findById(contentId).populate("reviews");
+    if (!content) {
+      return { error: "Content not found" };
+    }
+
+    return content.reviews;
+  }
+
+  async getProgress(req) {
+    const buyer = req.user.userId;
+    const business = req.params.handle;
+    const progress = await this.#progress.findOne({ buyer, business });
+    return progress;
+  }
+
+  async getCertificate(req) {
+    const buyer = req.user.userId;
+    const { handle, content } = req.params;
+    const progress = await this.#progress.findOne({ buyer, business: handle });
+
+    if (!progress) {
+      throw new NotFoundException("Progress not found");
+    }
+
+    const contentProgress = progress.contents.find((item) => item.content.toString() === content);
+
+    if (contentProgress && contentProgress.netProgress === 100) {
+      // geenrate certificate
+    } else {
+      throw new ForbiddenException(
+        "Progress condition not met. Kindly complete the course to generate Certificate"
+      );
+    }
+  }
+
+  async createAnnouncement(req) {
+    try {
+      const { contentId } = req.params;
+      const content = await this.#content.findById(contentId);
+      if (!content) {
+        return { error: "Content not found" };
+      }
+
+      const { title, description } = req.body;
+
+      const newAnnouncement = new AnnouncementModel({
+        title,
+        description,
+      });
+
+      await newAnnouncement.save();
+
+      content.announcements.push(newAnnouncement._id);
+      await content.save();
+
+      return content;
+    } catch (error) {
+      console.error("Error creating announcement:", error);
+      return { error: "Failed to create announcement" };
+    }
+  }
+
+  async updateAnnouncement(req) {
+    try {
+      const { announcementId } = req.params;
+      const { title, description } = req.body;
+
+      // Find and update the announcement
+      const updatedAnnouncement = await AnnouncementModel.findByIdAndUpdate(
+        announcementId,
+        { title, description },
+        { new: true, runValidators: true }
+      );
+
+      if (!updatedAnnouncement) {
+        return { error: "Announcement not found" };
+      }
+
+      return updatedAnnouncement;
+    } catch (error) {
+      console.error("Error updating announcement:", error);
+      return { error: "Failed to update announcement" };
+    }
+  }
+
+  async deleteAnnouncement(req) {
+    try {
+      const { announcementId, contentId } = req.params;
+
+      // Delete the announcement
+      const deletedAnnouncement = await AnnouncementModel.findByIdAndDelete(announcementId);
+
+      if (!deletedAnnouncement) {
+        return { error: "Announcement not found" };
+      }
+
+      // Remove the announcement reference from the content
+      const content = await this.#content.findById(contentId);
+      if (content) {
+        content.announcements = content.announcements.filter(
+          (id) => id.toString() !== announcementId
+        );
+        await content.save();
+      }
+
+      return { message: "Announcement deleted successfully" };
+    } catch (error) {
+      console.error("Error deleting announcement:", error);
+      return { error: "Failed to delete announcement" };
+    }
+  }
+
+  async getAllAnnouncements(req) {
+    try {
+      const { contentId } = req.query;
+      const content = await this.#content.findById(contentId).populate("announcements");
+
+      if (!content) {
+        return { error: "Content not found" };
+      }
+
+      return content.announcements;
+    } catch (error) {
+      console.error("Error fetching announcements:", error);
+      return { error: "Failed to fetch announcements" };
+    }
+  }
+}
+
+export default new BusinessContentService();
