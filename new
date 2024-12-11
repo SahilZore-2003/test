@@ -1,0 +1,234 @@
+import { Button } from "@shadcn/ui/button";
+import { Label } from "@shadcn/ui/label";
+import FontPicker from "font-picker-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ColorPicker, useColor } from "react-color-palette";
+import "react-color-palette/css";
+import { useDispatch, useSelector } from "react-redux";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { CONST } from "../../config";
+import { useAxios } from "../../config/axios";
+import SimpleLoader from "../../loaders/SimpleLoader";
+import { setCommunityStyles } from "../../redux/slices/appSlice";
+
+const CommunityStyles = () => {
+  const { communityStyles } = useSelector((state) => state.app);
+  const axiosInstance = useAxios();
+  const [styles, setStyles] = useState(communityStyles || {});
+  const dispatch = useDispatch();
+  const [loading, setLoading] = useState(false);
+
+  const [primaryColor, setPrimaryColor] = useColor(styles?.primary || "#2563EB");
+  const [showPrimaryColorPalette, setShowPrimaryColorPalette] = useState(false);
+  const primaryColorPaletteRef = useRef(null);
+
+  const [secondaryColor, setSecondaryColor] = useColor(styles?.secondary || "#2563EB");
+  const [showSecondaryColorPalette, setShowSecondaryColorPalette] = useState(false);
+  const secondaryColorPaletteRef = useRef(null);
+  const { currentUser } = useSelector((state) => state.user);
+
+  const [uiMode, setUIMode] = useState(
+    communityStyles?.uiMode === "snowfall" ? "Light" : "Dark" || "Light"
+  );
+
+  const handlePrimaryColorSelect = useCallback((color) => {
+    setPrimaryColor(color);
+  }, []);
+
+  const handleSecondaryColorSelect = useCallback((color) => {
+    setPrimaryColor(color);
+  }, []);
+
+  const handleMouseDownPrimary = useCallback((event) => {
+    if (primaryColorPaletteRef.current && !primaryColorPaletteRef.current.contains(event.target)) {
+      setShowPrimaryColorPalette(false);
+    }
+  }, []);
+
+  const handleMouseDownSecondary = useCallback((event) => {
+    if (primaryColorPaletteRef.current && !primaryColorPaletteRef.current.contains(event.target)) {
+      setShowPrimaryColorPalette(false);
+    }
+  }, []);
+
+  const handleUIModeChange = (e) => setUIMode(e.target.value);
+
+  const [fontData, setFontData] = useState({
+    apiKey: import.meta.env.VITE_FONT_API_KEY,
+    activeFontFamily: styles?.font || "Poppins",
+  });
+
+  const handleSave = async () => {
+    const data = {
+      primary: primaryColor.hex,
+      secondary: secondaryColor.hex,
+      uiMode: uiMode === "Light" ? "snowfall" : "charcoal",
+      font: fontData?.activeFontFamily,
+    };
+
+    try {
+      setLoading(true)
+      const res = await axiosInstance.post(CONST.uri.business.COMMUNITY_STYLES, { ...data });
+      console.log(res.data);
+      toast.success("Community Style was updated successfully!");
+    } catch (error) {
+      console.log(error);
+      toast.error("Community Style could not be updated.");
+    } finally {
+      setLoading(false)
+    }
+  };
+
+  useEffect(() => {
+    dispatch(
+      setCommunityStyles({
+        primaryColor: "#2563EB",
+        secondaryColor: "#2563EB",
+        uiMode: "snowfall",
+        font: "Poppins",
+      })
+    );
+  }, []);
+
+  //   const getStyles = async () => {
+  //     const res = await axiosInstance.get(
+  //       CONST.uri.business.GET_STYLES + `/${currentUser.businessId}`
+  //     );
+  //     setStyles(res.data.styles);
+  //     setUIMode(res.data.styles.uiMode === "charcoal" ? "Dark" : "Light");
+  //     setFontData({ ...fontData, activeFontFamily: res.data.styles.font || "Poppins" });
+  //   };
+
+  useEffect(() => {
+    // getStyles();
+  }, []);
+
+  return (
+    <section className="px-6 py-4 w-full">
+      <ToastContainer />
+      <div className="flex justify-between items-center mb-2 w-[80%]">
+        <div className="flex flex-col">
+          <h1 className="text-lg font-semibold mb-1">Community Styles</h1>
+          <p className="text-sm text-black/70">Style your website with your brand colors.</p>
+        </div>
+      </div>
+
+      <div className="flex justify-start mt-8 gap-x-16">
+        <div>
+          <p className="font-medium mb-2">
+            Primary Color<span className="text-red-600"> *</span>
+          </p>
+          <div className="w-96 mt-4">
+            <div
+              className="bg-slate-200 rounded-md p-3 text-sm w-44 h-10 relative"
+              onClick={() => setShowPrimaryColorPalette(!showPrimaryColorPalette)}
+            >
+              <span
+                className="w-6 h-6 rounded-md absolute top-2 left-2"
+                style={{ backgroundColor: primaryColor.hex }}
+              />
+              <p className="absolute top-2.5 left-10">{primaryColor.hex}</p>
+            </div>
+
+            {showPrimaryColorPalette && (
+              <div className="w-80 mt-3" onMouseDown={handleMouseDownPrimary}>
+                <ColorPicker
+                  innerRef={primaryColorPaletteRef}
+                  hideInput={["rgb", "hsv"]}
+                  color={primaryColor}
+                  onChange={setPrimaryColor}
+                  height={120}
+                  onColorSelect={handlePrimaryColorSelect}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="w-96">
+          <p className="font-medium mb-2">
+            Downvote & Bookmark Icon Color<span className="text-red-600"> *</span>
+          </p>
+          <div
+            className="bg-slate-200 rounded-md p-3 text-sm w-44 h-10 relative"
+            onClick={() => setShowSecondaryColorPalette(!showSecondaryColorPalette)}
+          >
+            <span
+              className="w-6 h-6 rounded-md absolute top-2 left-2"
+              style={{ backgroundColor: secondaryColor.hex }}
+            />
+            <p className="absolute top-2.5 left-10">{secondaryColor.hex}</p>
+          </div>
+
+          {showSecondaryColorPalette && (
+            <div className="w-80 mt-3" onMouseDown={handleMouseDownSecondary}>
+              <ColorPicker
+                innerRef={secondaryColorPaletteRef}
+                hideInput={["rgb", "hsv"]}
+                color={secondaryColor}
+                onChange={setSecondaryColor}
+                height={120}
+                onColorSelect={handleSecondaryColorSelect}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex justify-start mt-8 gap-x-16">
+        <div className="flex flex-col gap-4 w-96">
+          <Label>Font Family:</Label>
+          <FontPicker
+            pickerId={"main"}
+            limit={100}
+            apiKey={fontData.apiKey}
+            activeFontFamily={fontData?.activeFontFamily}
+            onChange={(nextFont) => setFontData({ ...fontData, activeFontFamily: nextFont.family })}
+          />
+        </div>
+        <CheckboxGroup
+          label="UI Mode"
+          options={["Light", "Dark"]}
+          value={uiMode}
+          onChange={handleUIModeChange}
+        />
+      </div>
+
+      <Button className={`text-white mt-8 ${loading ? "pointer-events-none opacity-50" : "opacity-100 pointer-events-auto"}`} onClick={handleSave}>
+        {
+          loading ? <div className="flex items-center gap-2"><SimpleLoader width="w-5" height="h-5" />Submiting</div> : "Set Community Styles"
+        }
+
+
+      </Button>
+    </section>
+  );
+};
+
+const CheckboxGroup = ({ label, options, value, onChange }) => {
+  return (
+    <div className="w-64">
+      <p className="font-medium mb-2">
+        {label}
+        <span className="text-red-600"> *</span>
+      </p>
+      <div className="flex justify-start gap-x-20">
+        {options.map((option, index) => (
+          <div key={index} className="flex gap-2">
+            <input
+              type="radio"
+              name={label}
+              value={option}
+              checked={value === option}
+              onChange={onChange}
+              className="rounded-full"
+            />
+            <p>{option}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default CommunityStyles;
