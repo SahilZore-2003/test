@@ -1,0 +1,34 @@
+import { AuthorizationToken } from "@brid/server/common";
+import { Router } from "express";
+import contentsController from "./controllers/contents.controller";
+
+export const CONTENTS_ROUTER = Router();
+
+CONTENTS_ROUTER.get("/:handle", contentsController.getContents);
+CONTENTS_ROUTER.get("/material/:material", contentsController.getMaterial);
+CONTENTS_ROUTER.get("/:content/groupMaterials", contentsController.groupMaterialsByContent);
+CONTENTS_ROUTER.get(
+  "/progress/:handle",
+  AuthorizationToken.isRequired,
+  contentsController.getProgress
+);
+CONTENTS_ROUTER.get(
+  "/getAnnouncement/:contentId",
+  contentsController.getLastThreeDaysAnnouncements
+);
+CONTENTS_ROUTER.post("/:contentId/addReview", contentsController.addReview);
+CONTENTS_ROUTER.get("/:contentId/getReviews", contentsController.getReviews);
+
+CONTENTS_ROUTER.post("answer/:contentId/:qnaId", contentsController.answerQuestion);
+
+CONTENTS_ROUTER.post("/announcement/:contentId", contentsController.createAnnouncement);
+CONTENTS_ROUTER.patch("/announcement/:announcementId", contentsController.updateAnnouncement);
+CONTENTS_ROUTER.delete(
+  "/announcement/:announcementId/:contentId",
+  contentsController.deleteAnnouncement
+);
+CONTENTS_ROUTER.get("/announcements", contentsController.getAllAnnouncements);
+
+CONTENTS_ROUTER.post("/:contentId/postQuestion", contentsController.postQuestion);
+CONTENTS_ROUTER.patch("/question/:questionId", contentsController.updateQuestion);
+CONTENTS_ROUTER.get("/questions", contentsController.getAllQuestions);
